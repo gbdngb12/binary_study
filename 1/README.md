@@ -1,3 +1,4 @@
+[Read to Notion](https://bolder-cloud-3a9.notion.site/1-16f826f24b7d4e98a7423367b52ff16d)
 # 1장. 바이너리란 무엇인가
 
 ```
