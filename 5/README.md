@@ -1,7 +1,7 @@
 # 5장 리눅스 바이너리 분석 기초(CTF 문제)
 
 ```
-리눅스 바이너리 분석 기초(CTF 문제)**
+리눅스 바이너리 분석 기초(CTF 문제)
 ├── file : 파일 확장자에 속지 않고 고유한 magic bytes를 이용해 파일의 형식 분석
 ├── head : 파일의 처음 부분의 일부를 확인
 ├── base64 : base64로 인코딩 또는 디코딩
@@ -13,10 +13,10 @@
 ├── c++filt : c++언어의 name mangling을 원래의 이름으로 복구
 ├── nm : c++언어의 name mangling을 원래의 이름으로 복구
 ├── strings : 바이너리 파일 내부에 있는 모든 문자열을 출력
-├── strace : 바이너리가 호출한 모든 system call의 정보를 출력**
+├── strace : 바이너리가 호출한 모든 system call의 정보를 출력
 ├── ltrace : 바이너리가 호출한 모든 Library Function의 call 정보를 출력
 ├── objdump : 바이너리 정적 분석 도구
-└── gdb : 바이너리 동적 분석 도구**
+└── gdb : 바이너리 동적 분석 도구
 ```
 
 - 이 장의 목표
