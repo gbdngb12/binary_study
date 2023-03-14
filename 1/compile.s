@@ -3,7 +3,9 @@
 	.text
 	.section	.rodata
 .LC0:
-	.string	"Hello, world!"
+	.string	"Hello, world!\n"
+.LC1:
+	.string	"%s"
 	.text
 	.globl	main
 	.type	main, @function
@@ -16,9 +18,14 @@ main:
 	.cfi_offset 6, -16
 	mov	rbp, rsp
 	.cfi_def_cfa_register 6
-	lea	rax, .LC0[rip]
-	mov	rdi, rax
-	call	puts@PLT
+	mov	esi, OFFSET FLAT:.LC0
+	mov	edi, OFFSET FLAT:.LC1
+	mov	eax, 0
+	call	printf
+	mov	esi, OFFSET FLAT:.LC0
+	mov	edi, OFFSET FLAT:.LC1
+	mov	eax, 0
+	call	printf
 	mov	eax, 0
 	pop	rbp
 	.cfi_def_cfa 7, 8
