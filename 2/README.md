@@ -1,3 +1,4 @@
+[Read to Notion](https://bolder-cloud-3a9.notion.site/2-ELF-7e75539fe9fb4bbbafe30f6ec18b5151)
 # 2장. ELF 바이너리 포맷
 
 ```
