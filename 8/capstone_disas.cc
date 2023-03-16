@@ -15,9 +15,10 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    if (disasm(&bin, disas::Type::RECURSIVE) < 0) {  // 2. Linear Disassemble Binary
-        return 1;
-    }
+    // if (disasm(&bin, disas::Type::RECURSIVE) < 0) {  // 2. Linear Disassemble Binary
+    //     return 1;
+    // }
+    find_gadgets(&bin);
 
     unload_binary(&bin);  // 3. unload Binary
 
@@ -99,40 +100,40 @@ int disasm(Binary *bin, disas::Type disas_type) {
                 continue;
             }
 
-            offset = addr - text->vma;//현재까지 읽은 부분
-            pc = text->bytes + offset;                                     // 현재 읽고 있는 파일 오프셋
-            n = text->size - offset;                                       // 남은 크기
-                                                                           /*
-                                                                           .text Section
-                                                                           text->vma ---> 0x40000   ────┐
-                                                                                    ┌──── 0x40001       │
-                                                                           offset   │                   │
-                                                                                    └────  ...          │
-                                                                           addr(init)---> 0x50000       │ size
-                                                                                          0x50001       │
-                                                                           pc, addr  ---> 0x50002       │
-                                                                                          0x50003       │
-                                                                                          0x50004       │
-                                                                                           ...          │
-                                                                                          0x60000   ────┘
-                                                                           */
-            while (cs_disasm_iter(dis, &pc, &n, &addr, insns)) {          // cs_disasm의 반복 순회용 변형, 한번에 한 개의 명령어만 디스어셈블 & pc 갱신 & 남은크기(n) 갱신,
+            offset = addr - text->vma;                                   // 현재까지 읽은 부분
+            pc = text->bytes + offset;                                   // 현재 읽고 있는 파일 오프셋
+            n = text->size - offset;                                     // 남은 크기
+                                                                         /*
+                                                                         .text Section
+                                                                         text->vma ---> 0x40000   ────┐
+                                                                                  ┌──── 0x40001       │
+                                                                         offset   │                   │
+                                                                                  └────  ...          │
+                                                                         addr(init)---> 0x50000       │ size
+                                                                                        0x50001       │
+                                                                         pc, addr  ---> 0x50002       │
+                                                                                        0x50003       │
+                                                                                        0x50004       │
+                                                                                         ...          │
+                                                                                        0x60000   ────┘
+                                                                         */
+            while (cs_disasm_iter(dis, &pc, &n, &addr, insns)) {         // cs_disasm의 반복 순회용 변형, 한번에 한 개의 명령어만 디스어셈블 & pc 갱신 & 남은크기(n) 갱신,
                 if (insns->id == X86_INS_INVALID || insns->size == 0) {  // 읽은 명령어가 invalid 하거나 크기가 0이면 break
                     break;
                 }
 
-                seen[insns->address] = true;//방문
-                print_ins(insns);  // 현재 명령어 출력
+                seen[insns->address] = true;  // 방문
+                print_ins(insns);             // 현재 명령어 출력
 
-                if (is_cs_cflow_ins(insns)) {                                // branch(call, ret, jump, interrupt(In x86 : syscall int 0x80))인지 확인한다.
-                    target = get_cs_ins_immediate_target(insns);             // branch이면 immediate branch에 대해서만 Q에 삽입하기 위해 target 주소를 가져온다.
+                if (is_cs_cflow_ins(insns)) {                                 // branch(call, ret, jump, interrupt(In x86 : syscall int 0x80))인지 확인한다.
+                    target = get_cs_ins_immediate_target(insns);              // branch이면 immediate branch에 대해서만 Q에 삽입하기 위해 target 주소를 가져온다.
                     if (target && !seen[target] && text->contains(target)) {  // target이 존재하고, 방문하지 않았고 text Section에 포함 된다면
                         Q.push(target);                                       // 해당 immediate에 대해서도 Q에 삽입하여 디스어셈블 해야함
                         printf("  -> new target: 0x%016jx\n", target);
                     }
                     if (is_cs_unconditional_cflow_ins(insns)) {  // 조건이 없는 branch이면 break
-                                                                  //  jmp 0x110100 이라는 식을 만나서 여기 까지 들어왔으면 어차피 밑에부분은 실행되지 않으므로(재귀적
-                                                                  //  디스어셈블 방식의 특징) 더이상 읽지 않는다.
+                                                                 //  jmp 0x110100 이라는 식을 만나서 여기 까지 들어왔으면 어차피 밑에부분은 실행되지 않으므로(재귀적
+                                                                 //  디스어셈블 방식의 특징) 더이상 읽지 않는다.
                         break;
                     }
                 } else if (insns->id == X86_INS_HLT)  // branch가 아니고 halt라면 break
@@ -201,4 +202,99 @@ bool is_cs_unconditional_cflow_ins(cs_insn *ins) {  // 조건이 없는 branch�
         default:
             return false;
     }
+}
+
+int find_gadgets(Binary *bin) {
+    csh dis;
+    Section *text;
+    std::map<std::string, std::vector<uint64_t>> gadgets;
+
+    const uint8_t x86_opc_ret = 0xc3;  // ret Command hex Code
+
+    text = bin->get_text_section();
+    if (!text) {
+        fprintf(stderr, "Nothing to disassemble\n");
+        return 0;
+    }
+
+    if (cs_open(CS_ARCH_X86, CS_MODE_64, &dis) != CS_ERR_OK) {
+        fprintf(stderr, "Failed to open Capstone\n");
+        return -1;
+    }
+    cs_option(dis, CS_OPT_DETAIL, CS_OPT_ON);
+
+    for (size_t i = 0; i < text->size; i++) {
+        if (text->bytes[i] == x86_opc_ret) {                                     // find ret
+            if (find_gadgets_at_root(text, text->vma + i, &gadgets, dis) < 0) {  // ret 명령어가 나오면 gadgets 변수에 ret명령어를 root로 하는 5개의 gadget를 저장한다.
+                break;
+            }
+        }
+    }
+
+    for (auto &kv : gadgets) {
+        printf("%s\t[ ", kv.first.c_str());
+        for (auto addr : kv.second) {
+            printf("0x%jx ", addr);
+        }
+        printf("]\n");
+    }
+    return 0;
+}
+
+bool is_cs_ret_ins(cs_insn *ins) {
+    switch (ins->id) {
+        case X86_INS_RET:
+            return true;
+        default:
+            return false;
+    }
+}
+
+int find_gadgets_at_root(Section *text, uint64_t root, std::map<std::string, std::vector<uint64_t>> *gadgets, csh dis) {
+    size_t n, len;
+    const uint8_t *pc;
+    uint64_t offset, addr;
+    std::string gadget_str;
+    cs_insn *cs_ins;
+
+    const size_t max_gadget_len = 5;                                  // instructions 갯수
+    const size_t x86_max_ins_bytes = 15;                              // x86 명령어 최대 바이트 수
+    const uint64_t root_offset = max_gadget_len * x86_max_ins_bytes;  // 5개 x 15 byte
+    cs_ins = cs_malloc(dis);
+    if (!cs_ins) {
+        fprintf(stderr, "Out of memory\n");
+        return -1;
+    }
+
+    for (uint64_t a = root - 1; text->contains(a) && a >= root - root_offset; a--) {
+        addr = a;                   // vma
+        offset = addr - text->vma;  // 현재 까지 읽은 파일 오프셋
+        pc = text->bytes + offset;  // 현재 읽는 vma
+        n = text->size - offset;    // 남은 파일 오프셋
+        len = 0;                    // gadets에 추가한 명령어의 라인의 수
+        gadget_str = "";
+        while (cs_disasm_iter(dis, &pc, &n, &addr, cs_ins)) {
+            if (cs_ins->id == X86_INS_INVALID || cs_ins->size == 0) {  // 유효하지 않은 명령어일 경우 break
+                break;
+            } else if (cs_ins->address > root) {  // 현재 읽고있는것 보다는 위를 읽어야함
+                break;
+            } else if (is_cs_cflow_ins(cs_ins) && !is_cs_ret_ins(cs_ins)) {  // ret 명령어가 아닌 제어흐름 명령어발견시 break
+                break;
+            } else if (++len > max_gadget_len) {  // 범위를 초과할경우 break
+                break;
+            }
+
+            gadget_str += std::string(cs_ins->mnemonic) + " " + std::string(cs_ins->op_str);
+            if (cs_ins->address == root) {
+                (*gadgets)[gadget_str].push_back(a);  // 명령어 니모닉에 대한 파일 오프셋 주소
+                break;
+            }
+
+            gadget_str += "; ";
+        }
+    }
+
+    cs_free(cs_ins, 1);
+
+    return 0;
 }
