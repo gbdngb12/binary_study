@@ -15,7 +15,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    if (disasm(&bin, disas::Type::RECURSIVE) < 0) {  // 2. Linear Disassemble Binary
+    if (disasm(&bin, disas::Type::LINEAR) < 0) {  // 2. Linear Disassemble Binary
         return 1;
     }
     // find_gadgets(&bin);

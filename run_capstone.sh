@@ -1,0 +1,1 @@
+cd build/8;./capstone_disas $1

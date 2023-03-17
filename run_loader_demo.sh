@@ -1,1 +1,1 @@
-cd build;./loader_demo $1
+cd build;./binary_study $1

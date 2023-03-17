@@ -98,7 +98,7 @@ void print_usage();
 
 /**
  * @brief 모든 결과를 출력 하는 함수
- * @param code 
+ * @param code exit code
  * @param v 사용자 정의 자료구조
 */
 void print_results(INT32 code, void *v);

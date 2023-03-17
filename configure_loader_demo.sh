@@ -1,2 +1,2 @@
 #!/bin/sh
-cmake -S . -B build/
+cmake -Dloader_test=ON -S . -B build/
