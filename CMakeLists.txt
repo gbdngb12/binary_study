@@ -10,6 +10,7 @@ project(binary_study)
 option(loader_test "build loader_demo" OFF)
 option(capstone_test "build capstone" OFF)
 option(pin_test "build pin" OFF)
+
 add_subdirectory("inc")
 
 if(loader_test)
