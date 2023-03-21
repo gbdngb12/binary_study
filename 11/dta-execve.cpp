@@ -52,7 +52,6 @@ void alert(uintptr_t addr, const char *source, uint8_t taint) {
     exit(1);
 }
 
-
 void check_string_taint(const char *str, const char *source) {
     uint8_t taint;
     uintptr_t start = (uintptr_t)str;
@@ -60,32 +59,77 @@ void check_string_taint(const char *str, const char *source) {
 
     fprintf(stderr, "(dta-execve) checking taint on bytes 0x%x -- 0x%x (%s)...", start, end, source);
 
-    for(uintptr_t addr = start; addr <= end; addr++) {
-        taint = tagmap_getb(addr);//get the tag value of a byte from the tagmap
-        if(taint != 0) alert(addr, source, taint);
+    for (uintptr_t addr = start; addr <= end; addr++) {
+        taint = tagmap_getb(addr);  // get the tag value of a byte from the tagmap
+        if (taint != 0) alert(addr, source, taint);
     }
 
     fprintf(stderr, "OK\n");
 }
 
 void post_socketcall_hook(syscall_ctx_t *ctx) {
-    //socketcall(int call, unsigned long *args)
-    //Linux 4.3 이전에 사용하던 함수
+    // socketcall(int call, unsigned long *args)
+    // Linux 4.3 이전에 사용하던 함수
     int fd;
     void *buf;
     size_t len;
 
-    int syscall_number = (int)ctx->arg[SYSCALL_ARG0];//Get Systemcall number
-    unsigned long *args = (unsigned long*)ctx->arg[SYSCALL_ARG1];//Get Args
+    int syscall_number = (int)ctx->arg[SYSCALL_ARG0];               // Get Systemcall number
+    unsigned long *args = (unsigned long *)ctx->arg[SYSCALL_ARG1];  // Get Args
 
-    switch(syscall_number) {
+    switch (syscall_number) {
         case SYS_RECV:
             [[__fallthrough__]];
         case SYS_RECVFROM:
-            if(unlikely(ctx->ret <= 0)) {
+            if (unlikely(ctx->ret <= 0)) {  // 오류인 경우
                 return;
             }
-            
+
+            fd = (int)args[0];       // file descriptor
+            buf = (void *)args[1];   // buf data
+            len = (size_t)ctx->ret;  // set recv length
+
+            fprintf(stderr, "(dta-execve) recv: %zu bytes from fd %u\n", len, fd);
+
+            for (size_t i = 0; i < len; i++) {
+                if (isprint(((char *)buf)[i])) {
+                    fprintf(stderr, "%c", ((char *)buf)[i]);
+                } else {
+                    fprintf(stderr, "\\x%02x", ((char *)buf)[i]);
+                }
+            }
+            fprintf(stderr, "\n");
+
+            fprintf(stderr, "(dta-execve) tainting bytes %p -- 0x%x with taint 0x%x\n", buf, (uintptr_t)buf, len, 0x01);
+
+            // recv로 받은 모든값을 1로 오염시킨다.
+            tagmap_setn((uintptr_t)buf, len, 0x01);  // tag an arbitrary number of bytes in the virtual address space
+            break;
+        default:
+            break;
+    }
+}
+
+void pre_execve_hook(syscall_ctx_t *ctx) {
+    // execve(const char *pathname, char *const argv[],
+    //               char *const envp[]);
+    const char *filename = (const char *)ctx->arg[SYSCALL_ARG0];  // Get pathname
+    char *const *argv = (char *const *)ctx->arg[SYSCALL_ARG1];    // Get argv
+
+    char *const *envp = (char *const *)ctx->arg[SYSCALL_ARG2];  // Get envp
+
+    fprintf(stderr, "(dta-execv) execve: %s (@%p)\n", filename, filename);
+
+    check_string_taint(filename, "execve command");
+    while(argv && *argv) {//execve의 나머지 매개변수 검사
+        fprintf(stderr, "(dta-execve) arg: %s (@%p)\n", *argv, *argv);
+        check_string_taint(*argv, "execve argument");
+        argv++;
+    }
+    while(envp && *envp) {//환경변수 매개변수 검사
+        fprintf(stderr, "(dta-execve) env: %s(@%p)\n", *envp, *envp);
+        check_string_taint(*envp, "execve environment parameter");
+        envp++;
     }
 }
 
