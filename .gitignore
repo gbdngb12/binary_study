@@ -49,6 +49,7 @@ build/
 [Bb][Uu][Ii][Ll][Dd]/
 
 #vscode ignore
+[.][v][s][c][o][d][e]/
 .vscode/*
 .vscode/settings.json
 .vscode/tasks.json
