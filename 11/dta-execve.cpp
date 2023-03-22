@@ -100,7 +100,7 @@ void post_socketcall_hook(syscall_ctx_t *ctx) {
             }
             fprintf(stderr, "\n");
 
-            fprintf(stderr, "(dta-execve) tainting bytes %p -- 0x%x with taint 0x%x\n", buf, (uintptr_t)buf, len, 0x01);
+            fprintf(stderr, "(dta-execve) tainting bytes %p -- 0x%x with taint 0x%x\n", buf, (uintptr_t)buf + len, 0x01);
 
             // recv로 받은 모든값을 1로 오염시킨다.
             tagmap_setn((uintptr_t)buf, len, 0x01);  // tag an arbitrary number of bytes in the virtual address space
@@ -118,16 +118,16 @@ void pre_execve_hook(syscall_ctx_t *ctx) {
 
     char *const *envp = (char *const *)ctx->arg[SYSCALL_ARG2];  // Get envp
 
-    fprintf(stderr, "(dta-execv) execve: %s (@%p)\n", filename, filename);
+    fprintf(stderr, "(dta-execve) execve: %s (@%p)\n", filename, filename);
 
-    check_string_taint(filename, "execve command");
+    check_string_taint(filename, "execve command");//file name에 오염 정보가 있는지 확인한다.
     while(argv && *argv) {//execve의 나머지 매개변수 검사
         fprintf(stderr, "(dta-execve) arg: %s (@%p)\n", *argv, *argv);
         check_string_taint(*argv, "execve argument");
         argv++;
     }
     while(envp && *envp) {//환경변수 매개변수 검사
-        fprintf(stderr, "(dta-execve) env: %s(@%p)\n", *envp, *envp);
+        fprintf(stderr, "(dta-execve) env: %s (@%p)\n", *envp, *envp);
         check_string_taint(*envp, "execve environment parameter");
         envp++;
     }
@@ -155,7 +155,7 @@ int main(int argc, char **argv) {
     // ins_set_post(&ins_desc[XED_ICLASS_RET_NEAR], dta_instrument_ret);//XED_ICLASS_RET_NEAR(니모닉과 관련)의 명령어가 호출되기 전에 dta_instrument_ret 콜백함수 호출
     // https://intelxed.github.io/ref-manual/
 
-    PIN_startProgram();
+    PIN_StartProgram();
 
     return 0;  // 절대 실행 되지 않음
 }
