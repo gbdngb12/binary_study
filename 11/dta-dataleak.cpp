@@ -63,7 +63,7 @@ void alert(uintptr_t addr, uint8_t taint) {
 
     for (unsigned char c = 0x01; c <= max_color; c <<= 1) {
         if (taint & c) {
-            fprintf(stderr, "  tainted by color = 0x%02x (%s)\n", c /*오염 색깔*/, color_to_name[c].c_str() /*오염 파일 이름*/);
+            fprintf(stderr, "  tainted by color = 0x%02x (%s)\n", c /*오염 색깔*/, color_to_fname[c].c_str() /*오염 파일 이름*/);
         }
     }
     exit(1);
