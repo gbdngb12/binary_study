@@ -162,7 +162,7 @@ void pre_socketcall_hook(syscall_ctx_t *ctx) {
 
             for (addr = start; addr <= end; addr++) {
                 taint = tagmap_getb(addr);
-                if (taint != 0) alert(adr, taint);
+                if (taint != 0) alert(addr, taint);
             }
             fprintf(stderr, "OK\n");
 
