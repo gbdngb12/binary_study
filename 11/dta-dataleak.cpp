@@ -59,7 +59,7 @@ void post_read_hook(syscall_ctx_t *ctx);
 void pre_socketcall_hook(syscall_ctx_t *ctx);
 
 void alert(uintptr_t addr, uint8_t taint) {
-    fprintf(stderr, "\n(dta-dataleak) !!!!! ADDRESS 0x%x IS TAINTED (taint=0x%02x), ABORTING !!!!!\n", addr, tag);
+    fprintf(stderr, "\n(dta-dataleak) !!!!! ADDRESS 0x%x IS TAINTED (taint=0x%02x), ABORTING !!!!!\n", addr, taint);
 
     for (unsigned char c = 0x01; c <= max_color; c <<= 1) {
         if (taint & c) {
@@ -133,7 +133,7 @@ void pre_socketcall_hook(syscall_ctx_t *ctx) {
     int fd;
     void *buf;
     size_t i, len;
-    uint8_t tag;
+    uint8_t taint;
     uintptr_t start, end, addr;
 
     int call = (int)ctx->arg[SYSCALL_ARG0];
@@ -159,10 +159,10 @@ void pre_socketcall_hook(syscall_ctx_t *ctx) {
             fprintf(stderr, "(dta-dataleak) checking taint on bytes %p -- 0x%x...", buf, (uintptr_t)buf + len);
             start = (uintptr_t)buf;
             end = (uintptr_t)buf + len;
-            
+
             for (addr = start; addr <= end; addr++) {
-                tag = tagmap_getb(addr);
-                if (tag != 0) alert(adr, tag);
+                taint = tagmap_getb(addr);
+                if (taint != 0) alert(adr, taint);
             }
             fprintf(stderr, "OK\n");
 
