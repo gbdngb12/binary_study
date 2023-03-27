@@ -20,6 +20,35 @@
  */
 void find_new_input(triton::API &api, Section *sec, uint64_t branch_addr);
 
+
+/**
+ * @brief PC를 다루기위해 triton의 아키텍처 정보를 설정한다.
+ * @param bin 바이너리 로더로 로드한 바이너리
+ * @param api triton api 참조
+ * @param ip PC 레지스터 정보
+ * @return 성공 / 실패
+ */
+int set_triton_arch(Binary &bin, triton::API &api, triton::arch::registers_e &ip);
+
+int set_triton_arch(Binary &bin, triton::API &api, triton::arch::registers_e &ip) {
+    if (bin.arch != Binary::BinaryArch::ARCH_X86) {
+        fprintf(stderr, "Unsupported architecture\n");
+        return -1;
+    }
+
+    if (bin.bits == 32) {
+        api.setArchitecture(triton::arch::ARCH_X86);
+        ip = triton::arch::ID_REG_EIP;
+    } else if (bin.bits == 64) {
+        api.setArchitecture(triton::arch::ARCH_X86_64);
+        ip = triton::arch::ID_REG_RIP;
+    } else {
+        fprintf(stderr, "Unsupported bit width for x86: %u bits\n", bin.bits);
+        return -1;
+    }
+
+    return 0;
+}
 void find_new_input(triton::API &api, Section *sec, uint64_t branch_addr) {
     triton::ast::AstContext &ast = api.getAstContext();                                 /** AST Context 참조*/
     triton::ast::AbstractNode *constraint_list = ast.equal(ast.bvtrue(), ast.bvtrue()); /** 제약 조건 목록 초기화*/
