@@ -134,10 +134,13 @@ int main(int argc, char *argv[]) {
         }
 
         if (pc == slice_addr) {  // 찾고자 슬라이스 하고자 했던 명령어의 주소로 도달했다면
-            print_slice(api, sec, slice_addr, get_trition_regnum(argv[5]), argv[5]);
+            print_slice(api, sec, slice_addr, get_triton_regnum(argv[5]), argv[5]);
             break;
         }
+
+        pc = (uint64_t)api.getConcreteRegisterValue(api.getRegister(ip));//update PC
     }
 
+    unload_binary(&bin);
     return 0;
 }
