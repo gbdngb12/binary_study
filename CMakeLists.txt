@@ -10,6 +10,7 @@ project(binary_study)
 option(loader_test "build loader_demo" OFF)
 option(capstone_test "build capstone" OFF)
 option(pin_test "build pin" OFF)
+option(triton_test "build triton" ON)
 
 add_subdirectory("inc")
 
@@ -27,4 +28,9 @@ endif()
 
 if(pin_test)
     add_subdirectory("9")
+endif()
+
+if(triton_test)
+    add_subdirectory("13")
+    add_subdirectory("util")
 endif()
